@@ -1,0 +1,235 @@
+/*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
+// author:     Ž. Medelis
+// extensions: M. Petkevičius
+// extensions: T. Krilavičius
+//
+// description: Snowball version of Porter stemmer for Lithuanian language
+// rules: 
+//    1) jeigu ilgesnis nei 3
+//    2) jeigu baigiasi tis, tas keiciam i t, PRE = true
+//    3) jeigu !PRE 
+//        ieskom galuniu, 
+//        ir jeigu ilgis be galunes daugiau uz 2, DELETE, FOUND1 = true
+//    4) jeigu FOUND keiciam tč ir dž, CHANGE = true
+//    5) jeigu FOUND arba PRE ir !CHANGE
+//      51) for 3x
+//        511) jeigu baigiasi galune ir ilgis daugiau uz 2 - DELETE
+//             isimtis galune UK, jei tai nera AUK - DELETE UK
+//    6) jeigu CHANGE ieskom priesagos po pakeitimo - DELETE
+//    7) keiciam tch ir dzh
+// compilation
+// --- c/c++, options:
+//  -output - output dir and file names; -utf8
+//  ./Snowball.exe algorithms/lithuanian/lithuanian.sbl -output dir/lithuanian -utf8
+// --- java, options: 
+//   -output - output dir and fnames; -name - class name; -java - generate java; -utf8
+//  cli:
+//   ./Snowball.exe algorithms/lithuanian/lithuanian.sbl -output lithuanian/lithuanian -utf8 -name lithuanian_stemmer -java
+//
+/*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
+
+
+/*----------------------------------------------------------------------------*/
+// external call API
+externals ( stem )
+/*----------------------------------------------------------------------------*/
+
+/*----------------------------------------------------------------------------*/
+/* Special characters in Unicode Latin-1 and Latin Extended-A */
+// ' nosine 
+stringdef a'   decimal '261'  // ą a + ogonek
+stringdef e'   decimal '281'  // ę e + ogonek
+stringdef i'   decimal '303'  // į i + ogonek
+stringdef u'   decimal '371'  // ų u + ogonek
+
+// . taskas
+stringdef e.   decimal '279'  // ė e + dot
+
+// - ilgoji
+stringdef u-   decimal '363'  // ū u + macron 
+
+// * varnele
+stringdef c*   decimal '269'  // č c + caron (haček)
+stringdef s*   decimal '353'  // š s + caron (haček)
+stringdef z*   decimal '382'  // ž z + caron (haček)
+/*----------------------------------------------------------------------------*/
+
+/*----------------------------------------------------------------------------*/
+// [C](VC)^m[V|C]
+// definitions of variables for
+// p1 - position of m = 0
+// p2 - position of m = 1
+integers ( p1 p2 )
+/*----------------------------------------------------------------------------*/
+
+/*----------------------------------------------------------------------------*/
+// booleans - to be commented
+// PRE
+// FOUND
+// CHANGE  
+booleans ( PRE FOUND CHANGE )
+/*----------------------------------------------------------------------------*/
+
+/*----------------------------------------------------------------------------*/
+// escape symbols for substituting lithuanian characters
+stringescapes { }
+/*----------------------------------------------------------------------------*/
+
+/*----------------------------------------------------------------------------*/
+// groupings
+// v - lithuanian vowels
+groupings ( v )
+/*----------------------------------------------------------------------------*/
+
+/*----------------------------------------------------------------------------*/
+// v - all lithuanian vowels
+define v 'aeiyou{a'}{e'}{i'}{u'}{e.}{u-}'
+/*----------------------------------------------------------------------------*/
+
+/*----------------------------------------------------------------------------*/
+// all lithuanian stemmer routines: 5 steps 
+routines (
+  step1_noun // comments to be added
+  step2 //
+  step3 //
+  step4 //
+  step5 //
+  mark_regions  // define [C] and [C]VC positions
+  R1            // [C]VC position
+  // R2            // [C]VCVC position  
+)
+/*----------------------------------------------------------------------------*/
+
+/*----------------------------------------------------------------------------*/
+// [C](VC)^m[V|C]
+// mark regions for
+// p1 - position of m = 0
+// p2 - position of m = 1 
+define mark_regions as (
+    $p1 = limit
+    $p2 = limit
+    do(
+      gopast v  gopast non-v  setmark p1
+      gopast non-v  setmark p2
+    )
+)
+/*----------------------------------------------------------------------------*/
+
+/*----------------------------------------------------------------------------*/
+// -------------------------- stemming rules
+// rules
+backwardmode(
+
+// 
+  define R1 as $p1 <= cursor
+//  define R2 as $p2 <= cursor
+
+/*===================================*/
+// --- step1: to be commented
+// endings: tis, tas  
+  define step1_noun as
+  ( //not R1
+    [substring] among
+    (
+      'tis'   // *tis -> t
+      'tas'   // *tas -> t
+      (<-'t' set PRE)
+    )
+  )
+/*===================================*/
+
+/*===================================*/  
+// --- step2: to be commented
+  define step2 as
+  ( not PRE //and not R1
+  [substring] among
+    (
+      'uosiuose'
+      'aisiais' 'iesiems'
+      'osioms' '{e.}jausi' 'uosius'
+      'usios' 'usius' 'amasi' 'osios' 'osiom' 'iomis' 'iajam' 'ajame' 'ianti'
+      'ajam' 'asis' 'am{e.}s' 'uoju' 'uoji' 'uoja' 'usis' 'omis' 'ieji' 'ioji'
+          'iaus' 'iais' 'iant' 'anti' 'inti'
+      'iuose'
+      'iasi' 'iams'  'ioje'  'iose'  'uose'  'iems'  '{e.}mis'  'umas'  
+          't{u'}j{u'}' 'iame' 'toje'
+      'ios' '{a'}j{i'}' '{a'}j{a'}' 'i{a'}s' 'oms' 'iau' 'asi' 'ose'  'oje'
+          'ojo'  'oji'  'yse'  'yje'
+      'iai'  'ias'  'ies'  'ius'  '{e.}se' '{e.}je'  'ers'  'ens'  'ais'  'ams'
+          'aus'  'iui'  'umu'
+      '{e.}ms'  'iam'  'imo' 'yti' 'uos' 'ant' 'osi'
+      'om' 'oj' 'os'  'uo'  'us'  'ys'  'ia'  'i{a'}'  '{e.}s'  'es'  'ei' 'as'
+          'ai'   'ui'  'iu'  'io' '{u-}s'  'ti' '{a'}s'
+      '{e'}s' 'is' 'i{u'}'
+      '{u'}' 'u' 'o'  '{i'}'  'i'  '{e'}'  '{e.}'  'e'  '{a'}'  'a'  's'
+      (set FOUND delete)
+    )
+  )
+/*===================================*/
+
+/*===================================*/
+// -- step3: to be commented
+  define step3 as
+  ( FOUND // and not R1
+    [substring] among
+    (
+      '{c*}' (<-'t' set CHANGE)
+      'd{z*}' (<-'d' set CHANGE)
+    )
+  )
+/*===================================*/  
+
+/*===================================*/  
+// -- step4: to be commented
+  define step4 as
+  ( FOUND or PRE and not CHANGE loop 3
+  // FOUND or PRE and not CHANGE //and not R1 loop 3
+    [substring] among
+    (
+      'uomen' 'inink'
+      'ok{s*}n' 'iaus' 'enyb' 'ojim' '{e.}jim' 'imas' 'avus' 'ulyt' 'iuoj'
+          'iant'
+      'iul' 'ant' 'uos' 'uoj' 'iuk' 'dam' 'dav' 'auj' 'ain' 'i{s*}k' 'eiv' 'int'
+          'uol' 'tok' 'toj' 'tas' 'iam' 'iau' 'iav'
+      'atv' 'yst' 'ien' 'ykl' 'tuv' 'tuk' 'ikl' 'esn' 'ekl' 'sen' 'tyn' 'izm'
+          'jim' '{e.}t' 'ia' '{e.}z' '{s*}{e.}' 'u{z*}' 'yt' 'el' 'av'
+      'uk' 'oj' '{e.}n' 'om' 'o{c*}' '{e.}j' 'ij'
+      'iuo'  //buriuoti
+      'uo' 'um' 'yk' '{e.}s' 'in' '{u-}n' 'ik' '{e.}l' 'yb' 'sm' 'es' 'ym'
+        (delete)
+    )
+  )
+/*===================================*/  
+
+/*===================================*/
+// step5: to be commented
+  define step5 as
+  ( CHANGE // and not R1
+    [substring] among
+    (
+      'i{u-}k{s*}t' 'iant'
+        (delete)
+    )
+  )
+)
+/*===================================*/
+
+/*===================================*/
+// stemmer
+define stem as
+(
+  unset PRE
+  unset FOUND
+  unset CHANGE
+  do mark_regions
+  backwards
+  (
+    do step1_noun
+    do step2
+    do step3
+    do step4
+    do step5
+    do step3
+  )
+)
+/*----------------------------------------------------------------------------*/
